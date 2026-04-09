@@ -11,6 +11,7 @@ LOCAL_PHONE_PREFIX = "+7"
 
 INVALID_FORMAT: str = "Invalid format of raw_call"
 INVALID_CALL_ID: str = "Invalid call id"
+VOID_NAME_OR_PHONE: str = "Void name or phone"
 
 
 class BaseCallException(ValueError):
@@ -19,20 +20,15 @@ class BaseCallException(ValueError):
         self.message = message
         super().__init__(f"{self.message} - {raw_call}")
 
-    def what(self):
-        pass
-
 
 class CallFormatException(BaseCallException):
-
-    def what(self):
-        print(f"{self.message}- {self.raw_call}")
+    def __init__(self, raw_call: str, message: str = "") -> None:
+        super().__init__(raw_call, message)
 
 
 class InvalidPhoneCall(BaseCallException):
-
-    def what(self):
-        print(f"{self.message} - {self.raw_call}")
+    def __init__(self, raw_call: str, message: str = "") -> None:
+        super().__init__(raw_call, message)
 
 
 @dataclass(slots=True)
@@ -54,10 +50,13 @@ class Switchboard:
     def get_abonent(self, data) -> User:
         try:
             abonent_data: tuple[int, str, str] = tuple([
-                int(item) if i == 0 else item for i, item in enumerate(data)])
+                int(item) if i == 0 else item.strip() for i, item in enumerate(data)])
 
         except ValueError:
             raise CallFormatException(",".join(data), INVALID_CALL_ID)
+
+        if abonent_data[1] == "" or abonent_data[2] == "":
+            raise CallFormatException(",".join(data), VOID_NAME_OR_PHONE)
 
         abonent: User = LocalUser(*abonent_data) if abonent_data[2].startswith(
             LOCAL_PHONE_PREFIX) else ForeignUser(*abonent_data)
@@ -67,11 +66,11 @@ class Switchboard:
     def register_call(self, raw_call: str) -> ActiveCall:
         '''
         Метод должен принимать только 1 строку и возвращать класс ActiveCall.
-        На входе строка должна быть вида "caller_id,caller_name,caller_name,reciever_id,reciever_name,reciever_phone"
+        На входе строка должна быть вида "caller_id,caller_name,caller_phone,reciever_id,reciever_name,reciever_phone"
 
         Например: "1001,Иван Петров,+71234567890,1085,Адам Яковлев,+71255556666"
         '''
-        parsed_raw_call: list[str] = list(raw_call.split(","))
+        parsed_raw_call: list[str] = list(raw_call.strip().split(","))
         if len(parsed_raw_call) != 6:
             raise CallFormatException(raw_call, INVALID_FORMAT)
 
